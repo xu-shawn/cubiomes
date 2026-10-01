@@ -12,6 +12,7 @@ Minecraft 26.3 without running the game:
 | `mapApproxHeightTectonic(y, ids, tn, x, z, w, h)` | like `mapApproxHeight`: 1:4 scale, heights and optionally biomes |
 | `sampleTectonicClimate(tn, np, nv, x, y, z)` | the six climate parameters the biome source sees |
 | `getTectonicBiomeAt(tn, scale, x, y, z)`, `sampleTectonicBiome(...)` | biome from that climate (`climateToBiome`, vanilla 26.3 tree) |
+| `sampleTectonicBiomeHeight(tn, np, &height, x, y, z, dat)` | biome of a 1:4 cell and base height of its column from one evaluation (for map tiles) |
 | `sampleTectonicField(tn, id, x, y, z)` | any named density function, ids via `getTectonicFieldId("tectonic:...")` |
 | `genTectonicBiomes(tn, out, r, sha)`, `genTectonicClimate(tn, out, r, nptype)` | biomes / one climate parameter for a `Range` (what `genBiomes` calls) |
 
