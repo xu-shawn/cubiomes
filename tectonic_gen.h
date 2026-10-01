@@ -5,6 +5,7 @@
 #define TECT_NFIELDS 57
 #define TECT_GEN_SLOTS 56
 #define TECT_GEN_NOISES 17
+#define TECT_GEN_LAYERS 156
 static const char *const tect_field_names[TECT_NFIELDS] = {
     "minecraft:overworld/continents",
     "minecraft:overworld/depth",
@@ -881,7 +882,7 @@ static float tmod_n2_blend_offset(TectEval *e)
 }
 static inline float tmod_n3_shift_x_(TectEval *e)   /* minecraft:shift_x */
 {
-    return tectNoiseGet(&e->tn->noise[1], (double)e->x * 0.25, 0.0, (double)e->z * 0.25) * 4.0f;
+    return tectNoiseGet(e->tn, 1, (double)e->x * 0.25, 0.0, (double)e->z * 0.25) * 4.0f;
 }
 static float tmod_n3_shift_x(TectEval *e)
 {
@@ -890,7 +891,7 @@ static float tmod_n3_shift_x(TectEval *e)
 }
 static inline float tmod_n4_shift_z_(TectEval *e)   /* minecraft:shift_z */
 {
-    return tectNoiseGet(&e->tn->noise[1], (double)e->z * 0.25, (double)e->x * 0.25, 0.0) * 4.0f;
+    return tectNoiseGet(e->tn, 1, (double)e->z * 0.25, (double)e->x * 0.25, 0.0) * 4.0f;
 }
 static float tmod_n4_shift_z(TectEval *e)
 {
@@ -902,7 +903,7 @@ static inline float tmod_n5__constants_noise_contine_(TectEval *e)   /* tectonic
     double x = (double)e->x * 0.12999999523162842 + (double)tmod_n3_shift_x(e);
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.12999999523162842 + (double)tmod_n4_shift_z(e);
-    return tectNoiseGet(&e->tn->noise[0], x, y, z);
+    return tectNoiseGet(e->tn, 0, x, y, z);
 }
 static float tmod_n5__constants_noise_contine(TectEval *e)
 {
@@ -951,7 +952,7 @@ static inline float tmod_n11__constants_noise_island__(TectEval *e)   /* tectoni
     double x = (double)e->x * 0.10999999940395355;
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.10999999940395355;
-    return tectNoiseGet(&e->tn->noise[2], x, y, z);
+    return tectNoiseGet(e->tn, 2, x, y, z);
 }
 static float tmod_n11__constants_noise_island_(TectEval *e)
 {
@@ -963,7 +964,7 @@ static inline float tmod_n12__constants_noise_island__(TectEval *e)   /* tectoni
     double x = (double)e->x * 0.10999999940395355;
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.10999999940395355;
-    return tectNoiseGet(&e->tn->noise[3], x, y, z);
+    return tectNoiseGet(e->tn, 3, x, y, z);
 }
 static float tmod_n12__constants_noise_island_(TectEval *e)
 {
@@ -1011,7 +1012,7 @@ static inline float tmod_n20__constants_noise_erosion_(TectEval *e)   /* tectoni
     double x = (double)e->x * 0.25 + (double)tmod_n3_shift_x(e);
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.25 + (double)tmod_n4_shift_z(e);
-    return tectNoiseGet(&e->tn->noise[4], x, y, z);
+    return tectNoiseGet(e->tn, 4, x, y, z);
 }
 static float tmod_n20__constants_noise_erosion(TectEval *e)
 {
@@ -1051,7 +1052,7 @@ static float tmod_n24_noise(TectEval *e)   /*   noise tectonic:island/ridge */
     double x = (double)e->x * 0.25 + (double)tmod_n3_shift_x(e);
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.25 + (double)tmod_n4_shift_z(e);
-    return tectNoiseGet(&e->tn->noise[5], x, y, z);
+    return tectNoiseGet(e->tn, 5, x, y, z);
 }
 static float tmod_n25_mul(TectEval *e)
 {
@@ -1146,7 +1147,7 @@ static inline float tmod_n40__constants_noise_ridge_(TectEval *e)   /* tectonic:
     double x = (double)e->x * 0.25 + (double)tmod_n3_shift_x(e);
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.25 + (double)tmod_n4_shift_z(e);
-    return tectNoiseGet(&e->tn->noise[6], x, y, z);
+    return tectNoiseGet(e->tn, 6, x, y, z);
 }
 static float tmod_n40__constants_noise_ridge(TectEval *e)
 {
@@ -1176,7 +1177,7 @@ static float tmod_n43_noise(TectEval *e)   /*   noise tectonic:region/selector *
     double x = (double)e->x * 1.1 + (double)tmod_n3_shift_x(e);
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 1.1 + (double)tmod_n4_shift_z(e);
-    return tectNoiseGet(&e->tn->noise[7], x, y, z);
+    return tectNoiseGet(e->tn, 7, x, y, z);
 }
 static inline float tmod_n44_noise_region_selector_(TectEval *e)   /* tectonic:noise/region_selector */
 {
@@ -1192,7 +1193,7 @@ static inline float tmod_n45__constants_noise_tempera_(TectEval *e)   /* tectoni
     double x = (double)e->x * 0.25 + (double)tmod_n3_shift_x(e);
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.25 + (double)tmod_n4_shift_z(e);
-    return tectNoiseGet(&e->tn->noise[8], x, y, z);
+    return tectNoiseGet(e->tn, 8, x, y, z);
 }
 static float tmod_n45__constants_noise_tempera(TectEval *e)
 {
@@ -1222,7 +1223,7 @@ static float tmod_n48_noise(TectEval *e)   /*   noise tectonic:region/spade/lowe
     double x = (double)e->x * 0.35;
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.35;
-    return tectNoiseGet(&e->tn->noise[9], x, y, z);
+    return tectNoiseGet(e->tn, 9, x, y, z);
 }
 static inline float tmod_n49_region_spade_lower_tier_(TectEval *e)   /* tectonic:region/spade/lower_tier */
 {
@@ -1247,7 +1248,7 @@ static inline float tmod_n51__constants_noise_vegetat_(TectEval *e)   /* tectoni
     double x = (double)e->x * 0.25 + (double)tmod_n3_shift_x(e);
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.25 + (double)tmod_n4_shift_z(e);
-    return tectNoiseGet(&e->tn->noise[10], x, y, z);
+    return tectNoiseGet(e->tn, 10, x, y, z);
 }
 static float tmod_n51__constants_noise_vegetat(TectEval *e)
 {
@@ -1295,7 +1296,7 @@ static float tmod_n56_noise(TectEval *e)   /*   noise tectonic:region/club/badla
     double x = (double)e->x * 0.35 + (double)tmod_n3_shift_x(e);
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.35 + (double)tmod_n4_shift_z(e);
-    return tectNoiseGet(&e->tn->noise[11], x, y, z);
+    return tectNoiseGet(e->tn, 11, x, y, z);
 }
 static inline float tmod_n57_region_club_badlands_rid_(TectEval *e)   /* tectonic:region/club/badlands_ridge */
 {
@@ -1320,7 +1321,7 @@ static float tmod_n59_noise(TectEval *e)   /*   noise tectonic:region/heart/roll
     double x = (double)e->x * 0.2;
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.2;
-    return tectNoiseGet(&e->tn->noise[12], x, y, z);
+    return tectNoiseGet(e->tn, 12, x, y, z);
 }
 static float tmod_n60_abs(TectEval *e)
 {
@@ -1349,7 +1350,7 @@ static float tmod_n63_noise(TectEval *e)   /*   noise tectonic:region/spade/uppe
     double x = (double)e->x * 0.35;
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.35;
-    return tectNoiseGet(&e->tn->noise[13], x, y, z);
+    return tectNoiseGet(e->tn, 13, x, y, z);
 }
 static inline float tmod_n64_region_spade_upper_tier_(TectEval *e)   /* tectonic:region/spade/upper_tier */
 {
@@ -1374,7 +1375,7 @@ static inline float tmod_n66_noise_(TectEval *e)   /*   noise tectonic:region/di
     double x = (double)e->x * 0.8;
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.8;
-    return tectNoiseGet(&e->tn->noise[14], x, y, z);
+    return tectNoiseGet(e->tn, 14, x, y, z);
 }
 static float tmod_n66_noise(TectEval *e)
 {
@@ -1404,7 +1405,7 @@ static float tmod_n69_noise(TectEval *e)   /*   noise tectonic:region/height_mul
     double x = (double)e->x * 0.25;
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.25;
-    return tectNoiseGet(&e->tn->noise[15], x, y, z);
+    return tectNoiseGet(e->tn, 15, x, y, z);
 }
 static float tmod_n70_mul(TectEval *e)
 {
@@ -2588,7 +2589,7 @@ static float tdp_n5_noise(TectEval *e)   /*   noise tectonic:blend_alpha */
     double x = (double)e->x * 0.4;
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.4;
-    return tectNoiseGet(&e->tn->noise[0], x, y, z);
+    return tectNoiseGet(e->tn, 0, x, y, z);
 }
 static float tdp_n6_mul(TectEval *e)
 {
@@ -2624,7 +2625,7 @@ static float tdp_n11_mul(TectEval *e)
 }
 static inline float tdp_n12_shift_x_(TectEval *e)   /* minecraft:shift_x */
 {
-    return tectNoiseGet(&e->tn->noise[2], (double)e->x * 0.25, 0.0, (double)e->z * 0.25) * 4.0f;
+    return tectNoiseGet(e->tn, 2, (double)e->x * 0.25, 0.0, (double)e->z * 0.25) * 4.0f;
 }
 static float tdp_n12_shift_x(TectEval *e)
 {
@@ -2633,7 +2634,7 @@ static float tdp_n12_shift_x(TectEval *e)
 }
 static inline float tdp_n13_shift_z_(TectEval *e)   /* minecraft:shift_z */
 {
-    return tectNoiseGet(&e->tn->noise[2], (double)e->z * 0.25, (double)e->x * 0.25, 0.0) * 4.0f;
+    return tectNoiseGet(e->tn, 2, (double)e->z * 0.25, (double)e->x * 0.25, 0.0) * 4.0f;
 }
 static float tdp_n13_shift_z(TectEval *e)
 {
@@ -2645,7 +2646,7 @@ static float tdp_n14_noise(TectEval *e)   /*   noise minecraft:continentalness *
     double x = (double)e->x * 0.13 + (double)tdp_n12_shift_x(e);
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.13 + (double)tdp_n13_shift_z(e);
-    return tectNoiseGet(&e->tn->noise[1], x, y, z);
+    return tectNoiseGet(e->tn, 1, x, y, z);
 }
 static inline float tdp_n15_abs_(TectEval *e)
 {
@@ -2689,7 +2690,7 @@ static inline float tdp_n20__constants_noise_island__(TectEval *e)   /* tectonic
     double x = (double)e->x * 0.11;
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.11;
-    return tectNoiseGet(&e->tn->noise[3], x, y, z);
+    return tectNoiseGet(e->tn, 3, x, y, z);
 }
 static float tdp_n20__constants_noise_island_(TectEval *e)
 {
@@ -2701,7 +2702,7 @@ static inline float tdp_n21__constants_noise_island__(TectEval *e)   /* tectonic
     double x = (double)e->x * 0.11;
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.11;
-    return tectNoiseGet(&e->tn->noise[4], x, y, z);
+    return tectNoiseGet(e->tn, 4, x, y, z);
 }
 static float tdp_n21__constants_noise_island_(TectEval *e)
 {
@@ -2749,7 +2750,7 @@ static inline float tdp_n29_noise_continent_erosion__(TectEval *e)   /* tectonic
     double x = (double)e->x * 0.25 + (double)tdp_n12_shift_x(e);
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.25 + (double)tdp_n13_shift_z(e);
-    return tectNoiseGet(&e->tn->noise[5], x, y, z);
+    return tectNoiseGet(e->tn, 5, x, y, z);
 }
 static float tdp_n29_noise_continent_erosion_(TectEval *e)
 {
@@ -2780,7 +2781,7 @@ static float tdp_n32_noise(TectEval *e)   /*   noise tectonic:island/ridge */
     double x = (double)e->x * 0.25 + (double)tdp_n12_shift_x(e);
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.25 + (double)tdp_n13_shift_z(e);
-    return tectNoiseGet(&e->tn->noise[6], x, y, z);
+    return tectNoiseGet(e->tn, 6, x, y, z);
 }
 static float tdp_n33_mul(TectEval *e)
 {
@@ -2875,7 +2876,7 @@ static inline float tdp_n48__constants_noise_ridge_(TectEval *e)   /* tectonic:_
     double x = (double)e->x * 0.25 + (double)tdp_n12_shift_x(e);
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.25 + (double)tdp_n13_shift_z(e);
-    return tectNoiseGet(&e->tn->noise[7], x, y, z);
+    return tectNoiseGet(e->tn, 7, x, y, z);
 }
 static float tdp_n48__constants_noise_ridge(TectEval *e)
 {
@@ -2905,7 +2906,7 @@ static float tdp_n51_noise(TectEval *e)   /*   noise tectonic:region/selector */
     double x = (double)e->x * 1.1 + (double)tdp_n12_shift_x(e);
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 1.1 + (double)tdp_n13_shift_z(e);
-    return tectNoiseGet(&e->tn->noise[8], x, y, z);
+    return tectNoiseGet(e->tn, 8, x, y, z);
 }
 static inline float tdp_n52_noise_region_selector_(TectEval *e)   /* tectonic:noise/region_selector */
 {
@@ -2921,7 +2922,7 @@ static inline float tdp_n53_overworld_temperature_(TectEval *e)   /* minecraft:o
     double x = (double)e->x * 0.25 + (double)tdp_n12_shift_x(e);
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.25 + (double)tdp_n13_shift_z(e);
-    return tectNoiseGet(&e->tn->noise[9], x, y, z);
+    return tectNoiseGet(e->tn, 9, x, y, z);
 }
 static float tdp_n53_overworld_temperature(TectEval *e)
 {
@@ -2942,7 +2943,7 @@ static float tdp_n55_noise(TectEval *e)   /*   noise tectonic:region/spade/lower
     double x = (double)e->x * 0.35;
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.35;
-    return tectNoiseGet(&e->tn->noise[10], x, y, z);
+    return tectNoiseGet(e->tn, 10, x, y, z);
 }
 static inline float tdp_n56_region_spade_lower_tier_(TectEval *e)   /* tectonic:region/spade/lower_tier */
 {
@@ -2967,7 +2968,7 @@ static inline float tdp_n58_overworld_vegetation_(TectEval *e)   /* minecraft:ov
     double x = (double)e->x * 0.25 + (double)tdp_n12_shift_x(e);
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.25 + (double)tdp_n13_shift_z(e);
-    return tectNoiseGet(&e->tn->noise[11], x, y, z);
+    return tectNoiseGet(e->tn, 11, x, y, z);
 }
 static float tdp_n58_overworld_vegetation(TectEval *e)
 {
@@ -3006,7 +3007,7 @@ static float tdp_n62_noise(TectEval *e)   /*   noise tectonic:region/club/badlan
     double x = (double)e->x * 0.35 + (double)tdp_n12_shift_x(e);
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.35 + (double)tdp_n13_shift_z(e);
-    return tectNoiseGet(&e->tn->noise[12], x, y, z);
+    return tectNoiseGet(e->tn, 12, x, y, z);
 }
 static inline float tdp_n63_region_club_badlands_rid_(TectEval *e)   /* tectonic:region/club/badlands_ridge */
 {
@@ -3031,7 +3032,7 @@ static float tdp_n65_noise(TectEval *e)   /*   noise tectonic:region/heart/rolli
     double x = (double)e->x * 0.2;
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.2;
-    return tectNoiseGet(&e->tn->noise[13], x, y, z);
+    return tectNoiseGet(e->tn, 13, x, y, z);
 }
 static float tdp_n66_abs(TectEval *e)
 {
@@ -3060,7 +3061,7 @@ static float tdp_n69_noise(TectEval *e)   /*   noise tectonic:region/spade/upper
     double x = (double)e->x * 0.35;
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.35;
-    return tectNoiseGet(&e->tn->noise[14], x, y, z);
+    return tectNoiseGet(e->tn, 14, x, y, z);
 }
 static inline float tdp_n70_region_spade_upper_tier_(TectEval *e)   /* tectonic:region/spade/upper_tier */
 {
@@ -3085,7 +3086,7 @@ static inline float tdp_n72_noise_(TectEval *e)   /*   noise tectonic:region/dia
     double x = (double)e->x * 0.8;
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.8;
-    return tectNoiseGet(&e->tn->noise[15], x, y, z);
+    return tectNoiseGet(e->tn, 15, x, y, z);
 }
 static float tdp_n72_noise(TectEval *e)
 {
@@ -3115,7 +3116,7 @@ static float tdp_n75_noise(TectEval *e)   /*   noise tectonic:region/height_mult
     double x = (double)e->x * 0.25;
     double y = (double)e->y * 0.0;
     double z = (double)e->z * 0.25;
-    return tectNoiseGet(&e->tn->noise[16], x, y, z);
+    return tectNoiseGet(e->tn, 16, x, y, z);
 }
 static float tdp_n76_mul(TectEval *e)
 {

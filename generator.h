@@ -3,6 +3,7 @@
 
 #include "layers.h"
 #include "biomenoise.h"
+#include "tectonic.h"
 
 // generator flags
 enum
@@ -10,6 +11,11 @@ enum
     LARGE_BIOMES            = 0x1,
     NO_BETA_OCEAN           = 0x2,
     FORCE_OCEAN_VARIANTS    = 0x4,
+    // Overworld terrain of the Tectonic mod (see tectonic.h) instead of vanilla.
+    // Only available for MC 26.3; setupGenerator() drops the flags otherwise.
+    TECTONIC_MOD            = 0x10, // Tectonic 3.0.31 mod, default config
+    TECTONIC_DATAPACK       = 0x20, // Tectonic 3.0.29 datapack
+    TECTONIC_ANY            = TECTONIC_MOD | TECTONIC_DATAPACK,
 };
 
 STRUCT(Generator)
@@ -29,6 +35,7 @@ STRUCT(Generator)
         };
         struct { // MC 1.18
             BiomeNoise bn;
+            TectonicNoise tn; // MC 26.3 with a TECTONIC_* flag
         };
         struct { // MC A1.2 - B1.7
             BiomeNoiseBeta bnb;
@@ -59,6 +66,11 @@ extern "C"
  * Sets up a biome generator for a given MC version. The 'flags' can be used to
  * control LARGE_BIOMES or to FORCE_OCEAN_VARIANTS to enable ocean variants at
  * scales higher than normal.
+ * With TECTONIC_MOD or TECTONIC_DATAPACK (MC 26.3 only) the Overworld is that of
+ * the Tectonic mod: genBiomes() and getBiomeAt() return the biomes the vanilla
+ * biome source selects from Tectonic's climate, and mapApproxHeight() returns
+ * Tectonic's base surface height (see tectonic.h). Finders that read the
+ * vanilla climate noise directly are not aware of Tectonic.
  */
 void setupGenerator(Generator *g, int mc, uint32_t flags);
 

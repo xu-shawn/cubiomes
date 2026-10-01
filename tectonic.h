@@ -20,7 +20,7 @@
  * pragmas in tectonic.c take care of that).
  */
 
-#include "rng.h"
+#include "biomenoise.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -36,7 +36,7 @@ enum TectonicVariant
 enum
 {
     TECTONIC_MAX_NOISES = 20,
-    TECTONIC_MAX_LAYERS = 18,   // two Perlin layers per octave
+    TECTONIC_MAX_LAYERS = 160,  // Perlin layers of all noises together (two per octave)
     TECTONIC_SEA_LEVEL  = 63,
 };
 
@@ -46,25 +46,21 @@ STRUCT(TectonicPerlin)
     uint8_t d[256];             // permutation
 };
 
-// NormalNoise as built by Minecraft 26.3: a stack of Perlin layers with float amplitudes
-STRUCT(TectonicNormalNoise)
+// The NormalNoises of a variant as Minecraft 26.3 builds them: every noise is a stack of Perlin
+// layers with float amplitudes; noise i owns the layers [first[i], first[i+1]).
+STRUCT(TectonicNoise)
 {
-    int layers;
+    int variant;
+    uint64_t seed;
+    int first[TECTONIC_MAX_NOISES + 1];
     double freq[TECTONIC_MAX_LAYERS];
     float amp[TECTONIC_MAX_LAYERS];
     TectonicPerlin perlin[TECTONIC_MAX_LAYERS];
 };
 
-STRUCT(TectonicNoise)
-{
-    int variant;
-    uint64_t seed;
-    TectonicNormalNoise noise[TECTONIC_MAX_NOISES];
-};
-
 /**
  * Initializes the Tectonic noises for a world seed. Returns zero on success and non-zero if the
- * variant is unknown. A TectonicNoise is about 100 kB; it is not modified by sampling, so one
+ * variant is unknown. A TectonicNoise is about 47 kB; it is not modified by sampling, so one
  * instance can be shared between threads.
  */
 int initTectonic(TectonicNoise *tn, int variant, uint64_t seed);
@@ -114,6 +110,21 @@ int getTectonicBiomeAt(const TectonicNoise *tn, int scale, int x, int y, int z);
  * it receives the quantized climate. dat is the lookup state of climateToBiome() (may be NULL).
  */
 int sampleTectonicBiome(const TectonicNoise *tn, int64_t *np, int x, int y, int z, uint64_t *dat);
+
+/**
+ * Counterpart of genBiomeNoiseScaled(): biomes for a Range at scale 1, 4, 16, 64 or 256. Scale 1
+ * applies the voronoi zoom with the given sha (getVoronoiSHA(seed)) and needs the cache size
+ * getMinCacheSize() reports for 1.18+; scales above 4 sample the centre of each cell.
+ * This is what genBiomes() calls for a Generator set up with a TECTONIC_* flag.
+ */
+int genTectonicBiomes(const TectonicNoise *tn, int *out, Range r, uint64_t sha);
+
+/**
+ * Fills out with one climate parameter (nptype = NP_TEMPERATURE .. NP_WEIRDNESS), quantized like
+ * sampleTectonicClimate(), for a Range at scale 4 or above. For NP_DEPTH the terrain offset is
+ * written (the depth parameter without its y gradient), as cubiomes does for vanilla.
+ */
+int genTectonicClimate(const TectonicNoise *tn, int *out, Range r, int nptype);
 
 /**
  * Counterpart of mapApproxHeight() for Tectonic: horizontal scaling 1:4, y[w*h] receives the base

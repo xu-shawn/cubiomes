@@ -19,7 +19,6 @@ import argparse, json, os, re, struct, sys, zipfile
 
 ROOT_OFFSET = "tectonic:terrain_spline/offset/final"
 ROUTER_KEYS = ["temperature", "vegetation", "continents", "erosion", "depth", "ridges"]   # Climate.Sampler order
-MAX_LAYERS = 18
 
 
 def f32(x):
@@ -84,6 +83,7 @@ class Variant:
         self.tables = []         # spline table text
         self.coords = []         # cnames used as spline coordinates
         self.counter = 0
+        self.nlayers = 0             # Perlin layers of all noises together
 
     # ---------------------------------------------------------------- helpers
     def new_name(self, hint):
@@ -216,14 +216,14 @@ class Variant:
             body = ["double x = (double)e->x * %s%s;" % (dlit(xz), shift("shift_x")),
                     "double y = (double)e->y * %s%s;" % (dlit(ys), ysh),
                     "double z = (double)e->z * %s%s;" % (dlit(xz), shift("shift_z")),
-                    "return tectNoiseGet(&e->tn->noise[%d], x, y, z);" % k]
+                    "return tectNoiseGet(e->tn, %d, x, y, z);" % k]
             return self.emit(hint, body, memo, cm + "  noise " + node["noise"])
         if t in ("shift_a", "shift_b", "shift"):
             k = self.noise_index(node["noise"] if "noise" in node else node["argument"])
             args = {"shift_a": "(double)e->x * 0.25, 0.0, (double)e->z * 0.25",
                     "shift_b": "(double)e->z * 0.25, (double)e->x * 0.25, 0.0",
                     "shift": "(double)e->x * 0.25, (double)e->y * 0.25, (double)e->z * 0.25"}[t]
-            return self.emit(hint, ["return tectNoiseGet(&e->tn->noise[%d], %s) * 4.0f;" % (k, args)], memo, cm)
+            return self.emit(hint, ["return tectNoiseGet(e->tn, %d, %s) * 4.0f;" % (k, args)], memo, cm)
         if t == "gradient":
             assert node.get("tiling", "clamp_to_edge").replace("minecraft:", "") == "clamp_to_edge", "gradient tiling"
             fc, tc = int(node["from_coordinate"]), int(node["to_coordinate"])
@@ -289,7 +289,8 @@ class Variant:
         norm = d.get("normalize", True)
         assert norm in (True, "legacy"), "normalize: %r not supported" % (norm,)
         used = sum(1 for i in range(n) if (mods[i] if mods else 1.0) != 0.0)
-        assert 2 * used <= MAX_LAYERS, "too many octaves in " + ident
+        assert n <= 16, "too many octaves in " + ident
+        self.nlayers += 2 * used
         return '{"%s", %d, %d, %s, %d, {%s}}' % (ident, int(d["base_octave"]), n, dlit(d.get("base_amplitude", 1.0)),
                                                  1 if norm == "legacy" else 0, ", ".join(dlit(m) for m in (mods or [1.0] * n)))
 
@@ -345,6 +346,7 @@ def main():
     out.append("#define TECT_NFIELDS %d" % len(all_ids))
     out.append("#define TECT_GEN_SLOTS %d" % max(v.nslots for v in variants))
     out.append("#define TECT_GEN_NOISES %d" % max(len(v.noises) for v in variants))
+    out.append("#define TECT_GEN_LAYERS @LAYERS@")
     out.append("static const char *const tect_field_names[TECT_NFIELDS] = {")
     out += ['    "%s",' % i for i in all_ids]
     out.append("};")
@@ -356,10 +358,10 @@ def main():
         out.append("    {%snoise_params, %d, %sfields, %sroots, %d}," % (v.p, len(v.noises), v.p, v.p, v.sea_level))
     out.append("};")
     out.append("#define TECT_NVARIANTS %d" % len(variants))
-    sys.stdout.write("\n".join(out) + "\n")
+    sys.stdout.write("\n".join(out).replace("@LAYERS@", str(max(v.nlayers for v in variants))) + "\n")
     for v in variants:
-        sys.stderr.write("%s: %d named functions, %d C functions, %d splines, %d noises, %d memo slots\n"
-                         % (v.name, len(v.ids_in_order), len(v.funcs), len(v.tables), len(v.noises), v.nslots))
+        sys.stderr.write("%s: %d named functions, %d C functions, %d splines, %d noises (%d Perlin layers), %d memo slots\n"
+                         % (v.name, len(v.ids_in_order), len(v.funcs), len(v.tables), len(v.noises), v.nlayers, v.nslots))
 
 
 if __name__ == "__main__":

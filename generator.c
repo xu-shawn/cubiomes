@@ -62,6 +62,9 @@ int mapOceanMixMod(const Layer * l, int * out, int x, int z, int w, int h)
 
 void setupGenerator(Generator *g, int mc, uint32_t flags)
 {
+    if (mc < MC_26_3)
+        flags &= ~(uint32_t)TECTONIC_ANY; // Tectonic's data is for 26.3
+
     g->mc = mc;
     g->dim = DIM_UNDEF;
     g->flags = flags;
@@ -117,6 +120,11 @@ void applySeed(Generator *g, int dim, uint64_t seed)
         else // if (g->mc >= MC_1_18)
         {
             setBiomeSeed(&g->bn, seed, g->flags & LARGE_BIOMES);
+            if (g->flags & TECTONIC_ANY)
+            {
+                initTectonic(&g->tn, g->flags & TECTONIC_MOD ?
+                    TECTONIC_MOD_3_0_31 : TECTONIC_DP_3_0_29, seed);
+            }
         }
     }
     else if (dim == DIM_NETHER && g->mc >= MC_1_16_1)
@@ -200,6 +208,12 @@ int genBiomes(const Generator *g, int *cache, Range r)
         }
         else if (g->mc >= MC_1_18)
         {
+            if (g->flags & TECTONIC_ANY)
+            {
+                if (g->bn.nptype >= 0) // a single climate parameter
+                    return genTectonicClimate(&g->tn, cache, r, g->bn.nptype);
+                return genTectonicBiomes(&g->tn, cache, r, g->sha);
+            }
             return genBiomeNoiseScaled(&g->bn, cache, r, g->sha);
         }
         else // g->mc <= MC_B1_7
@@ -622,6 +636,8 @@ int mapApproxHeight(float *y, int *ids, const Generator *g, const SurfaceNoise *
 
     if (g->mc >= MC_1_18)
     {
+        if (g->flags & TECTONIC_ANY)
+            return mapApproxHeightTectonic(y, ids, &g->tn, x, z, w, h);
         if (g->bn.nptype != -1 && g->bn.nptype != NP_DEPTH)
             return 1;
         int64_t i, j;

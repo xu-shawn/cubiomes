@@ -18,7 +18,6 @@
 #endif
 
 #include "tectonic.h"
-#include "biomenoise.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -245,8 +244,8 @@ typedef struct
     double mods[16];            // amplitude_modifiers
 } TectNoiseParams;
 
-// NormalNoise(parameters) + NormalNoise.create(random)
-static void tectNormalNoiseInit(TectonicNormalNoise *nn, const TectNoiseParams *np, TectXr factory)
+// NormalNoise(parameters) + NormalNoise.create(random): appends the layers of noise k to the pool
+static int tectNormalNoiseInit(TectonicNoise *tn, int k, const TectNoiseParams *np, TectXr factory)
 {
     int n = np->octave_count, nocts = 0, i;
     double amp0 = np->base_amplitude * (pow(0.5, -(double)(n - 1)) / (pow(0.5, -(double)n) - 1.0));
@@ -256,6 +255,7 @@ static void tectNormalNoiseInit(TectonicNormalNoise *nn, const TectNoiseParams *
     int min_o = 1 << 30, max_o = -(1 << 30);
     double target = 0, var = 0, input_dev, norm;
     TectXr rng, first, second;
+    int l = tn->first[k];
 
     for (i = 0; i < n; i++)
     {
@@ -283,30 +283,32 @@ static void tectNormalNoiseInit(TectonicNormalNoise *nn, const TectNoiseParams *
     rng = tectXrFromHashOf(factory, np->name);
     first = tectXrForkPositional(&rng);
     second = tectXrForkPositional(&rng);
-    nn->layers = 0;
-    for (i = 0; i < nocts && nn->layers + 2 <= TECTONIC_MAX_LAYERS; i++)
+    if (l + 2 * nocts > TECTONIC_MAX_LAYERS)
+        return 1;
+    for (i = 0; i < nocts; i++)
     {
         char key[32];
         float vf = (float)(norm * oct_amp[i]);
-        int k = nn->layers;
         snprintf(key, sizeof key, "octave_%d", oct_idx[i]);
-        tectPerlinInit(&nn->perlin[k], tectXrFromHashOf(first, key));
-        nn->freq[k] = oct_freq[i]; nn->amp[k] = vf;
-        tectPerlinInit(&nn->perlin[k + 1], tectXrFromHashOf(second, key));
-        nn->freq[k + 1] = oct_freq[i] * 1.0181268882175227; nn->amp[k + 1] = vf;
-        nn->layers += 2;
+        tectPerlinInit(&tn->perlin[l], tectXrFromHashOf(first, key));
+        tn->freq[l] = oct_freq[i]; tn->amp[l] = vf;
+        tectPerlinInit(&tn->perlin[l + 1], tectXrFromHashOf(second, key));
+        tn->freq[l + 1] = oct_freq[i] * 1.0181268882175227; tn->amp[l + 1] = vf;
+        l += 2;
     }
+    tn->first[k + 1] = l;
+    return 0;
 }
 
-// NoiseStack.get(x, y, z)
-static inline float tectNoiseGet(const TectonicNormalNoise *nn, double x, double y, double z)
+// NoiseStack.get(x, y, z) of noise k
+static inline float tectNoiseGet(const TectonicNoise *tn, int k, double x, double y, double z)
 {
     float v = 0.0f;
-    int i;
-    for (i = 0; i < nn->layers; i++)
+    int i, end = tn->first[k + 1];
+    for (i = tn->first[k]; i < end; i++)
     {
-        double f = nn->freq[i];
-        v += nn->amp[i] * tectPerlinGet(&nn->perlin[i], x * f, y * f, z * f);
+        double f = tn->freq[i];
+        v += tn->amp[i] * tectPerlinGet(&tn->perlin[i], x * f, y * f, z * f);
     }
     return v;
 }
@@ -394,8 +396,8 @@ static float tectSplineEval(const TectSplineNode *nodes, const TectSplinePoint *
 
 #include "tectonic_gen.h"
 
-#if TECT_GEN_SLOTS > 96 || TECT_GEN_NOISES > 20
-#error "tectonic_gen.h needs more memo slots / noises than tectonic.c provides"
+#if TECT_GEN_SLOTS > 96 || TECT_GEN_NOISES > 20 || TECT_GEN_LAYERS > 160
+#error "tectonic_gen.h needs more memo slots / noises / layers than tectonic.h provides"
 #endif
 
 static inline void tectEvalAt(TectEval *e, const TectonicNoise *tn, int x, int y, int z)
@@ -421,8 +423,10 @@ int initTectonic(TectonicNoise *tn, int variant, uint64_t seed)
     // RandomState: new XoroshiroRandomSource(seed).forkPositional()
     rng = tectXrFromSeed(seed);
     factory = tectXrForkPositional(&rng);
+    tn->first[0] = 0;
     for (i = 0; i < v->nnoises; i++)
-        tectNormalNoiseInit(&tn->noise[i], &v->noises[i], factory);
+        if (tectNormalNoiseInit(tn, i, &v->noises[i], factory))
+            return 1;
     return 0;
 }
 
@@ -477,6 +481,96 @@ int getTectonicBiomeAt(const TectonicNoise *tn, int scale, int x, int y, int z)
     if (scale == 1) { x >>= 2; y >>= 2; z >>= 2; }
     else if (scale != 4) return -1;
     return sampleTectonicBiome(tn, NULL, x, y, z, NULL);
+}
+
+static void tectGen3D(const TectonicNoise *tn, int *out, Range r, int nptype, int carry)
+{
+    uint64_t dat = 0;
+    int i, j, k;
+    int *p = out;
+    int scale = r.scale > 4 ? r.scale / 4 : 1;
+    int mid = scale / 2;
+    for (k = 0; k < r.sy; k++)
+    {
+        int yk = r.y + k;
+        for (j = 0; j < r.sz; j++)
+        {
+            int zj = (r.z + j) * scale + mid;
+            for (i = 0; i < r.sx; i++)
+            {
+                int xi = (r.x + i) * scale + mid;
+                if (nptype < 0)
+                    *p = sampleTectonicBiome(tn, NULL, xi, yk, zj, carry ? &dat : NULL);
+                else if (nptype == NP_DEPTH)
+                    *p = (int)(int64_t)(sampleTectonicOffset(tn, xi * 4, zj * 4) * 10000.0f);
+                else
+                {
+                    int64_t np[6];
+                    sampleTectonicClimate(tn, np, NULL, xi * 4, yk * 4, zj * 4);
+                    *p = (int)np[nptype];
+                }
+                p++;
+            }
+        }
+    }
+}
+
+int genTectonicBiomes(const TectonicNoise *tn, int *out, Range r, uint64_t sha)
+{
+    uint64_t siz;
+    int i, j, k;
+
+    if (r.sy == 0)
+        r.sy = 1;
+    siz = (uint64_t)r.sx * r.sy * r.sz;
+
+    if (r.scale == 1)
+    {   // same procedure as genBiomeNoiseScaled(): biomes at 1:4, then the voronoi zoom
+        Range s = getVoronoiSrcRange(r);
+        int *src = NULL;
+        int *p = out;
+        if (siz > 1)
+        {
+            src = out + siz;
+            tectGen3D(tn, src, s, -1, 0);
+        }
+        for (k = 0; k < r.sy; k++)
+        {
+            for (j = 0; j < r.sz; j++)
+            {
+                for (i = 0; i < r.sx; i++)
+                {
+                    int x4, z4, y4;
+                    voronoiAccess3D(sha, r.x+i, r.y+k, r.z+j, &x4, &y4, &z4);
+                    if (src)
+                    {
+                        x4 -= s.x; y4 -= s.y; z4 -= s.z;
+                        *p = src[(int64_t)y4*s.sx*s.sz + (int64_t)z4*s.sx + x4];
+                    }
+                    else
+                    {
+                        *p = sampleTectonicBiome(tn, NULL, x4, y4, z4, NULL);
+                    }
+                    p++;
+                }
+            }
+        }
+    }
+    else
+    {
+        tectGen3D(tn, out, r, -1, 0);
+    }
+    return 0;
+}
+
+int genTectonicClimate(const TectonicNoise *tn, int *out, Range r, int nptype)
+{
+    if (nptype < 0 || nptype >= NP_MAX || r.scale < 4)
+        return 1;
+    if (r.sy == 0)
+        r.sy = 1;
+    tectGen3D(tn, out, r, nptype, 0);
+    return 0;
 }
 
 int mapApproxHeightTectonic(float *y, int *ids, const TectonicNoise *tn, int x, int z, int w, int h)

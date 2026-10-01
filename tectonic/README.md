@@ -13,12 +13,33 @@ Minecraft 26.3 without running the game:
 | `sampleTectonicClimate(tn, np, nv, x, y, z)` | the six climate parameters the biome source sees |
 | `getTectonicBiomeAt(tn, scale, x, y, z)`, `sampleTectonicBiome(...)` | biome from that climate (`climateToBiome`, vanilla 26.3 tree) |
 | `sampleTectonicField(tn, id, x, y, z)` | any named density function, ids via `getTectonicFieldId("tectonic:...")` |
+| `genTectonicBiomes(tn, out, r, sha)`, `genTectonicClimate(tn, out, r, nptype)` | biomes / one climate parameter for a `Range` (what `genBiomes` calls) |
+
+## Through the Generator
+
+```C
+Generator g;
+setupGenerator(&g, MC_26_3, TECTONIC_MOD);       // or TECTONIC_DATAPACK
+applySeed(&g, DIM_OVERWORLD, seed);
+```
+
+With one of the two flags the Overworld of the `Generator` is Tectonic's:
+
+* `genBiomes` / `getBiomeAt` return Tectonic's biomes at every scale (1:1 with the voronoi zoom, 1:4 exact, larger
+  scales sample the cell centre like the vanilla path). If `g.bn.nptype` is set to a climate type, `genBiomes` returns
+  that parameter of Tectonic's climate instead (for `NP_DEPTH` the terrain offset), as for vanilla.
+* `mapApproxHeight` returns Tectonic's base surface height (and biomes at that height if `ids` is given).
+* Nether and End, other versions (the flags are dropped unless the version is 26.3) and Generators without the flag
+  behave exactly as before. The vanilla `BiomeNoise` is still seeded, because several finders read it directly
+  (`sampleBiomeNoise(&g->bn, ...)`); those finders therefore see vanilla climate, and structure positions in a
+  Tectonic world are **unverified**.
+* `sizeof(Generator)` grows from 24.6 kB to 71.4 kB, because it embeds a `TectonicNoise`.
 
 The base surface is the terrain before Tectonic's peaks (`jaggedness`) and the 3D density noise are added. Measured
 against the real generator: between y 100 and 160 the real surface lies 0-7 blocks above it, on mountain crests the
 peaks add up to ~130 blocks. The real surface (final density, aquifers) is **not** part of this module.
 
-About 0.7 million columns per second and thread (heights), a `TectonicNoise` is about 100 kB and read-only after
+About 0.7 million columns per second and thread (heights), a `TectonicNoise` is about 47 kB and read-only after
 `initTectonic`, so it can be shared between threads.
 
 ## How it is built
@@ -54,13 +75,17 @@ seed-finding project next to this directory).
   mod, 52 for the datapack) and the six router climate functions at random positions (x, z from spawn to the world
   border at 29,999,900; y from -64 to 320). Result of `tectonic/validate.sh 20000`, 5 seeds x 2 variants:
   **200,000 positions, 12,000,000 values, all bit-identical** (`max |diff| 0` for every function).
+  A second pass does the same through the `Generator` (heights from `mapApproxHeight`, five climate parameters from
+  `genBiomes` with `bn.nptype`): **200,000 positions, 1,200,000 values, all identical**.
 * `tectonic/validate_biomes.sh` compares biomes at the base surface with the game's `MultiNoiseBiomeSource`
-  (through the explorer's tile server). 4 seeds x 2 variants, 128,000 columns: **127,937 identical (99.95%)**. All 63
-  differences are exact ties: the climate lies exactly on the border between the parameter ranges of two biomes, both
-  are equally close, and the game takes whichever its search meets first (or its previous result) while cubiomes'
-  26.3 tree picks the other. Tectonic's splines output such border values (e.g. continentalness exactly -0.11) far
-  more often than vanilla noise does.
-* `tests/test_tectonic.c` (ctest) checks 288 reference positions printed by the game, bit for bit, plus a few biomes;
+  (through the explorer's tile server). 4 seeds x 2 variants, 128,000 columns: **127,937 identical (99.95%)**, both
+  with `getTectonicBiomeAt` and with `getBiomeAt(&g, 4, ...)`. Biomes at 1:1 (`getBiomeAt(&g, 1, ...)`, voronoi zoom)
+  against the game's `BiomeManager`: **127,949 of 128,000 identical**. All differences are exact ties: the climate lies
+  exactly on the border between the parameter ranges of two biomes, both are equally close, and the game takes
+  whichever its search meets first (or its previous result) while cubiomes' 26.3 tree picks the other. Tectonic's
+  splines output such border values (e.g. continentalness exactly -0.11) far more often than vanilla noise does.
+* `tests/test_tectonic.c` (ctest) checks 288 reference positions printed by the game, bit for bit, a few biomes, and
+  the `Generator` hook against the direct functions (all scales, climate parameters, flag handling);
   `tectonic/gen_test_reference.sh` regenerates the reference table.
 
 Compile `tectonic.c` without floating point contraction. `CMakeLists.txt` passes `-ffp-contract=off` for that file
@@ -83,7 +108,6 @@ build/tectonic/tectonic_map 93929 -c -21182484 -22681584 -s 64 -n 1024 768 -m 15
 ## Not included
 
 * The real surface with peaks, caves and aquifers (3D final density).
-* Structures and features in a Tectonic world: the existing cubiomes finders use vanilla terrain and biomes.
-* A hook into `Generator` / `genBiomes`: Tectonic has its own struct so that the existing API and struct layouts stay
-  untouched.
+* Structures and features in a Tectonic world: the finders are unchanged; with a Tectonic `Generator` their biome
+  checks see Tectonic's biomes, but terrain checks and direct climate reads are vanilla. None of it is verified.
 * Other Tectonic versions or non-default mod configs (regenerate `tectonic_gen.h` from the corresponding pack).

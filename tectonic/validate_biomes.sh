@@ -5,7 +5,9 @@
 #   tectonic/validate_biomes.sh [url of a running explorer tile server=http://127.0.0.1:8123] [grids per case=8]
 #
 # Ground truth comes from the tile server of the Tectonic seed-finding project (../explorer/run.sh), whose
-# fn=biome_seq grids are produced by the game's own biome source, row by row on a fresh thread.
+# fn=biome_seq grids are produced by the game's own biome source, row by row on a fresh thread, and whose
+# fn=biome_zoom_seq grids add the game's BiomeManager (the 1:1 biome of a block). Both the direct functions and
+# the Generator hook (getBiomeAt at scale 4 and at scale 1) are compared.
 # The climate itself is bit-exact (validate.sh). Where two biomes fit a climate equally well (their parameter
 # boxes touch and the value lies exactly on the border, which Tectonic's splines produce far more often than
 # vanilla noise) the game takes whichever its search meets first, or its previous result; cubiomes' tree does not
@@ -16,11 +18,12 @@ URL=${1:-http://127.0.0.1:8123}
 GRIDS=${2:-8}
 CHECK=${CHECK:-build/tectonic/tectonic_check}
 [ -x "$CHECK" ] || { echo "build first: cmake -B build && cmake --build build" >&2; exit 1; }
+TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 rc=0
 for v in mod dp; do
   for s in 12345 93929 -7046029254386353131 62232235; do
     echo "== $v seed $s"
-    python3 - "$URL" $v $s "$GRIDS" <<'PY' | "$CHECK" $v $s | grep -vE "^0 points|^OK|^MISMATCH" || rc=1
+    python3 - "$URL" $v $s "$GRIDS" > "$TMP/biomes.txt" <<'PY' || { echo "cannot reach the tile server at $URL"; exit 1; }
 import json, random, struct, sys, urllib.request, zlib, math
 url, pack, seed, grids = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
 f32 = lambda x: struct.unpack('f', struct.pack('f', x))[0]
@@ -38,7 +41,15 @@ for i in range(grids):
         x, z, idx = b.split(); off = float(o.split()[2])
         y = max(63, math.floor(f32(128.0 * f32(1.0 + off))))       # where the tile server samples the biome
         print("B", x, y, z, names[int(float(idx))])
+    zoom = urllib.request.urlopen(q + "biome_zoom_seq").read().decode().split("\n")
+    for b, o in zip(zoom, base):
+        if not b: continue
+        x, z, idx = b.split(); off = float(o.split()[2])
+        y = max(63, math.floor(f32(128.0 * f32(1.0 + off))))
+        print("Z", x, y, z, names[int(float(idx))])
 PY
+    "$CHECK" $v $s < "$TMP/biomes.txt" | grep -vE "^0 points|^OK|^MISMATCH" || rc=1
+    "$CHECK" -g $v $s < "$TMP/biomes.txt" | grep -vE "^OK|^MISMATCH" || rc=1
   done
 done
 [ $rc = 0 ] && echo "ALL OK: biomes identical except for exact ties" || echo "MISMATCH"

@@ -335,7 +335,7 @@ int main()
 
 ### Tectonic Terrain
 
-`tectonic.h` adds the terrain of the [Tectonic](https://modrinth.com/mod/tectonic) world generation mod on Minecraft 26.3, for the 3.0.31 mod (default config, `TECTONIC_MOD_3_0_31`) and the 3.0.29 datapack (`TECTONIC_DP_3_0_29`). It is independent of the `Generator`: initialise a `TectonicNoise` from a seed and sample block columns.
+`tectonic.h` adds the terrain of the [Tectonic](https://modrinth.com/mod/tectonic) world generation mod on Minecraft 26.3, for the 3.0.31 mod (default config, `TECTONIC_MOD_3_0_31`) and the 3.0.29 datapack (`TECTONIC_DP_3_0_29`). It can be used on its own (initialise a `TectonicNoise` from a seed and sample block columns) or through the `Generator` with the flags `TECTONIC_MOD` / `TECTONIC_DATAPACK`.
 
 ```C
 // heights and biomes of a Tectonic world
@@ -346,7 +346,7 @@ int main()
 
 int main()
 {
-    TectonicNoise *tn = malloc(sizeof(TectonicNoise));   // about 100 kB
+    TectonicNoise *tn = malloc(sizeof(TectonicNoise));   // about 47 kB
     initTectonic(tn, TECTONIC_MOD_3_0_31, 93929);
 
     int x = -21198424, z = -22681504;
@@ -368,8 +368,18 @@ int main()
 * `mapApproxHeightTectonic` is the counterpart of `mapApproxHeight` (1:4 scale, optional biome ids).
 * `sampleTectonicClimate`, `sampleTectonicBiome` and `getTectonicBiomeAt` give the climate Tectonic feeds to the vanilla biome source, and the resulting biome via `climateToBiome`.
 * `sampleTectonicField` gives access to every named density function of the graph (`tectonic:noise/raw_continents`, `tectonic:terrain_spline/offset/regions`, ...).
+* `setupGenerator(&g, MC_26_3, TECTONIC_MOD)` (or `TECTONIC_DATAPACK`) makes `genBiomes`, `getBiomeAt` and `mapApproxHeight` return Tectonic's biomes and base surface height for the Overworld, so existing code that drives a `Generator` shows Tectonic worlds. The flags are ignored for other versions; without them nothing changes. Finders that read the vanilla climate noise directly are not aware of Tectonic, so structure positions in a Tectonic world are unverified.
 
-The density functions in `tectonic_gen.h` are generated from Tectonic's data files (Tectonic is by Apollo and MIT licensed, https://github.com/Apollounknowndev/tectonic) by `tectonic/gen_tectonic.py`. Minecraft 26.3 evaluates noise in single precision, so the module carries its own float noise stack. Compared with the real 26.3 generator the offset, the climate and all 56 named density functions are bit-identical on every one of 200,000 tested positions (10 seed/variant combinations, spawn to the world border); biomes are identical on 99.95% of 128,000 columns, the rest being exact ties between two biomes. `tectonic.c` must not be compiled with floating point contraction (`-ffp-contract=off`, which `CMakeLists.txt` sets). See [tectonic/README.md](tectonic/README.md) for details, the validation scripts, and `tectonic_map`, a small program that renders a height or biome map to a PPM image:
+```C
+Generator g;
+setupGenerator(&g, MC_26_3, TECTONIC_MOD);
+applySeed(&g, DIM_OVERWORLD, 93929);
+int biome = getBiomeAt(&g, 1, -21198424, 150, -22681504);          // snowy_slopes
+float y;
+mapApproxHeight(&y, NULL, &g, NULL, -21198424 >> 2, -22681504 >> 2, 1, 1);   // 150.08
+```
+
+The density functions in `tectonic_gen.h` are generated from Tectonic's data files (Tectonic is by Apollo and MIT licensed, https://github.com/Apollounknowndev/tectonic) by `tectonic/gen_tectonic.py`. Minecraft 26.3 evaluates noise in single precision, so the module carries its own float noise stack. Compared with the real 26.3 generator the offset, the climate and all 56 named density functions are bit-identical on every one of 200,000 tested positions (10 seed/variant combinations, spawn to the world border); biomes are identical on 99.95% of 128,000 columns, the rest being exact ties between two biomes. The same holds through the `Generator` (heights, climate, biomes at 1:4 and at 1:1). `tectonic.c` must not be compiled with floating point contraction (`-ffp-contract=off`, which `CMakeLists.txt` sets). See [tectonic/README.md](tectonic/README.md) for details, the validation scripts, and `tectonic_map`, a small program that renders a height or biome map to a PPM image:
 
 ```sh
 cmake -B build && cmake --build build
