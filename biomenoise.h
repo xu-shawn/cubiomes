@@ -295,6 +295,17 @@ int getOldBetaBiome(float t, float h);
 int climateToBiome(int mc, const uint64_t np[6], uint64_t *dat);
 
 /**
+ * Same result as climateToBiome(mc, np, NULL): the biome does not depend on
+ * earlier lookups. If hint is non-null it holds the tree node of the previous
+ * lookup (start with 0) and is updated; that node bounds the search, which
+ * makes lookups of neighbouring positions several times faster.
+ * (With dat, climateToBiome() keeps the previous biome whenever it fits the
+ * climate equally well, like the game does, so its result depends on the order
+ * of the lookups; with a hint it does not.)
+ */
+int climateToBiomeHint(int mc, const uint64_t np[6], uint64_t *hint);
+
+/**
  * Initialize BiomeNoise for only a single climate parameter.
  * If nptype == NP_DEPTH, the value is sampled at y=0. Note that this value
  * changes linearly with the height (i.e. -= y/128).

@@ -139,12 +139,13 @@ static int test_tectonic_generator() {
     }
     free(ids);
 
-    /* biome and height from one evaluation equal the separate calls */
-    for (int i = 0; i < 200; i++) {
-        int x4 = (x >> 2) + 97 * i, z4 = (z >> 2) - 61 * i, y4 = (i * 7) % 80 - 16;
+    /* biome and height from one evaluation equal the separate calls, with and without a search hint */
+    uint64_t hint = 0;
+    for (int i = 0; i < 4000; i++) {
+        int x4 = (x >> 2) + (i < 2000 ? i : 97 * i), z4 = (z >> 2) - (i < 2000 ? i / 50 : 61 * i), y4 = (i * 7) % 80 - 16;
         float h = 0;
         int64_t npa[6], npb[6];
-        int id = sampleTectonicBiomeHeight(tn, npa, &h, x4, y4, z4, NULL);
+        int id = sampleTectonicBiomeHeight(tn, npa, &h, x4, y4, z4, i % 3 ? &hint : NULL);
         ASSERT_EQ(ret, id, sampleTectonicBiome(tn, npb, x4, y4, z4, NULL));
         ASSERT_EQ(ret, float_bits(h), float_bits(getTectonicHeight(tn, x4 * 4, z4 * 4)));
         for (int k = 0; k < 6; k++)

@@ -477,7 +477,7 @@ int sampleTectonicBiome(const TectonicNoise *tn, int64_t *np, int x, int y, int 
 }
 
 int sampleTectonicBiomeHeight(const TectonicNoise *tn, int64_t *np, float *height,
-    int x, int y, int z, uint64_t *dat)
+    int x, int y, int z, uint64_t *hint)
 {
     const TectVariant *v = &tect_variants[tn->variant];
     int64_t l_np[6];
@@ -490,7 +490,7 @@ int sampleTectonicBiomeHeight(const TectonicNoise *tn, int64_t *np, float *heigh
     // the offset was evaluated for the depth parameter and is memoised in e
     if (height)
         *height = 128.0f * (1.0f + v->roots[0](&e));
-    return climateToBiome(MC_26_3, (const uint64_t *)p_np, dat);
+    return climateToBiomeHint(MC_26_3, (const uint64_t *)p_np, hint);
 }
 
 int getTectonicBiomeAt(const TectonicNoise *tn, int scale, int x, int y, int z)

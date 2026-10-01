@@ -1449,7 +1449,7 @@ int get_resulting_node(const uint64_t np[6], const BiomeTree *bt, int idx,
 }
 
 ATTR(hot, flatten)
-int climateToBiome(int mc, const uint64_t np[6], uint64_t *dat)
+static const BiomeTree *getBiomeTree(int mc)
 {
     static const BiomeTree btree18 = {
         btree18_steps, &btree18_param[0][0], btree18_nodes, btree18_order,
@@ -1485,7 +1485,6 @@ int climateToBiome(int mc, const uint64_t np[6], uint64_t *dat)
     };
 
     const BiomeTree *bt;
-    int idx;
     if (mc >= MC_26_3)
         bt = &btree263;
     else if (mc >= MC_26_2)
@@ -1503,6 +1502,13 @@ int climateToBiome(int mc, const uint64_t np[6], uint64_t *dat)
     else
         bt = &btree18;
 
+    return bt;
+}
+
+int climateToBiome(int mc, const uint64_t np[6], uint64_t *dat)
+{
+    const BiomeTree *bt = getBiomeTree(mc);
+    int idx;
     if (dat)
     {
         int alt = (int) *dat;
@@ -1514,6 +1520,81 @@ int climateToBiome(int mc, const uint64_t np[6], uint64_t *dat)
     {
         idx = get_resulting_node(np, bt, 0, 0, -1, 0);
     }
+
+    return (bt->nodes[idx] >> 48) & 0xFF;
+}
+
+/* The first leaf below idx, in tree order, among those with the smallest
+ * distance to np, provided that distance is below *ds; -1 if there is none.
+ * On success *ds is that distance.
+ */
+static
+int get_bounded_node(const uint64_t np[6], const BiomeTree *bt, int idx,
+    uint64_t *ds, int depth)
+{
+    if (bt->steps[depth] == 0)
+        return idx;
+    uint32_t step;
+    do
+    {
+        step = bt->steps[depth];
+        depth++;
+    }
+    while (idx+step >= bt->len);
+
+    uint64_t node = bt->nodes[idx];
+    uint16_t inner = node >> 48;
+
+    int leaf = -1;
+    uint32_t i, n;
+
+    for (i = 0, n = bt->order; i < n; i++)
+    {
+        uint64_t ds_inner = get_np_dist(np, bt, inner);
+        if (ds_inner < *ds)
+        {
+            uint64_t ds_sub = *ds;
+            int leaf2 = get_bounded_node(np, bt, inner, &ds_sub, depth);
+            if (leaf2 == inner)
+            {   // inner is a leaf itself
+                *ds = ds_inner;
+                leaf = leaf2;
+            }
+            else if (leaf2 >= 0)
+            {
+                *ds = ds_sub;
+                leaf = leaf2;
+            }
+        }
+
+        inner += step;
+        if (inner >= bt->len)
+            break;
+    }
+
+    return leaf;
+}
+
+int climateToBiomeHint(int mc, const uint64_t np[6], uint64_t *hint)
+{
+    const BiomeTree *bt = getBiomeTree(mc);
+    uint64_t ds = (uint64_t) -1;
+    int idx;
+
+    if (hint && *hint > 0 && *hint < bt->len)
+    {   // the previous result bounds the search: nothing farther away can win
+        ds = get_np_dist(np, bt, (int) *hint);
+        if (ds != (uint64_t) -1)
+            ds++;
+    }
+    idx = get_bounded_node(np, bt, 0, &ds, 0);
+    if (idx < 0)
+    {   // the hint was not a leaf of this tree
+        ds = (uint64_t) -1;
+        idx = get_bounded_node(np, bt, 0, &ds, 0);
+    }
+    if (hint)
+        *hint = (uint64_t) idx;
 
     return (bt->nodes[idx] >> 48) & 0xFF;
 }

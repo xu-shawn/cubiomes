@@ -113,13 +113,15 @@ int sampleTectonicBiome(const TectonicNoise *tn, int64_t *np, int x, int y, int 
 
 /**
  * Biome and base surface height from one evaluation: the biome of the 1:4 cell (x, y, z), exactly
- * as sampleTectonicBiome() returns it, and in *height the base surface height of the block column
- * (x*4, z*4) at which that cell's climate is sampled, exactly as getTectonicHeight() returns it.
- * The climate needs the surface offset anyway, so this costs the same as the biome alone
- * (about a third less than the two separate calls). np and dat may be NULL.
+ * as sampleTectonicBiome() returns it without dat, and in *height the base surface height of the
+ * block column (x*4, z*4) at which that cell's climate is sampled, exactly as getTectonicHeight()
+ * returns it. The climate needs the surface offset anyway, so the height comes for free.
+ * hint is the search hint of climateToBiomeHint() (start with 0, pass the same variable for
+ * neighbouring positions): it speeds the biome lookup up without changing its result.
+ * np and hint may be NULL.
  */
 int sampleTectonicBiomeHeight(const TectonicNoise *tn, int64_t *np, float *height,
-    int x, int y, int z, uint64_t *dat);
+    int x, int y, int z, uint64_t *hint);
 
 /**
  * Counterpart of genBiomeNoiseScaled(): biomes for a Range at scale 1, 4, 16, 64 or 256. Scale 1
