@@ -18,6 +18,7 @@ Below is a list of all the major additions:
 - Fast Xoroshiro128++ state advancement.
 - Canyon/cave carvers (1.13+).
 - Terrain generation (1.14+).
+- Tectonic mod terrain (26.3): base surface height, climate and biomes, see [Tectonic Terrain](#tectonic-terrain).
 - Various bug fixes.
 
 MSVC is **not** supported for this fork. Please use MinGW, UCRT64, Clang, or GCC.
@@ -332,6 +333,45 @@ int main()
 ```
 
 
+### Tectonic Terrain
 
+`tectonic.h` adds the terrain of the [Tectonic](https://modrinth.com/mod/tectonic) world generation mod on Minecraft 26.3, for the 3.0.31 mod (default config, `TECTONIC_MOD_3_0_31`) and the 3.0.29 datapack (`TECTONIC_DP_3_0_29`). It is independent of the `Generator`: initialise a `TectonicNoise` from a seed and sample block columns.
 
+```C
+// heights and biomes of a Tectonic world
+#include "tectonic.h"
+#include "util.h"
+#include <stdio.h>
+#include <stdlib.h>
 
+int main()
+{
+    TectonicNoise *tn = malloc(sizeof(TectonicNoise));   // about 100 kB
+    initTectonic(tn, TECTONIC_MOD_3_0_31, 93929);
+
+    int x = -21198424, z = -22681504;
+    float y = getTectonicHeight(tn, x, z);                // base surface, sea level is 63
+    int biome = getTectonicBiomeAt(tn, 1, x, (int) y, z);
+    printf("base height at %d, %d is y %.1f (%s)\n", x, z, y, biome2str(MC_26_3, biome));
+
+    // a 256x256 height map, one sample every 16 blocks
+    float *map = malloc(sizeof(float) * 256 * 256);
+    mapTectonicHeight(map, tn, x - 2048, z - 2048, 256, 256, 16);
+
+    free(map);
+    free(tn);
+    return 0;
+}
+```
+
+* `sampleTectonicOffset` / `getTectonicHeight` / `mapTectonicHeight` evaluate Tectonic's complete base surface (`tectonic:terrain_spline/offset/final`: continents, erosion-ridge mountain ranges, plateau regions, islands, ocean floor). The height is `128 * (1 + offset)`, the terrain before Tectonic's peaks and the 3D noise are added; on mountain crests the real surface rises up to ~130 blocks above it.
+* `mapApproxHeightTectonic` is the counterpart of `mapApproxHeight` (1:4 scale, optional biome ids).
+* `sampleTectonicClimate`, `sampleTectonicBiome` and `getTectonicBiomeAt` give the climate Tectonic feeds to the vanilla biome source, and the resulting biome via `climateToBiome`.
+* `sampleTectonicField` gives access to every named density function of the graph (`tectonic:noise/raw_continents`, `tectonic:terrain_spline/offset/regions`, ...).
+
+The density functions in `tectonic_gen.h` are generated from Tectonic's data files (Tectonic is by Apollo and MIT licensed, https://github.com/Apollounknowndev/tectonic) by `tectonic/gen_tectonic.py`. Minecraft 26.3 evaluates noise in single precision, so the module carries its own float noise stack. Compared with the real 26.3 generator the offset, the climate and all 56 named density functions are bit-identical on every one of 200,000 tested positions (10 seed/variant combinations, spawn to the world border); biomes are identical on 99.95% of 128,000 columns, the rest being exact ties between two biomes. `tectonic.c` must not be compiled with floating point contraction (`-ffp-contract=off`, which `CMakeLists.txt` sets). See [tectonic/README.md](tectonic/README.md) for details, the validation scripts, and `tectonic_map`, a small program that renders a height or biome map to a PPM image:
+
+```sh
+cmake -B build && cmake --build build
+build/tectonic/tectonic_map 93929 -c -21182484 -22681584 -s 64 -n 1024 768 -m 150 -o range.ppm
+```

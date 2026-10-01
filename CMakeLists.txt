@@ -25,6 +25,7 @@ set(HEADERS
 	biomes.h
 	noise.h
 	terrainnoise.h
+	tectonic.h
 	rng.h
 	util.h
 	quadbase.h
@@ -120,6 +121,7 @@ set(SOURCES
 	biomes.c
 	noise.c
 	terrainnoise.c
+	tectonic.c
 	util.c
 	quadbase.c
 	xradv.c
@@ -210,6 +212,8 @@ target_compile_options(objects PRIVATE
 	-mpopcnt
 )
 set_property(TARGET objects PROPERTY POSITION_INDEPENDENT_CODE 1)
+# Tectonic terrain reproduces the game's float arithmetic bit for bit; a fused multiply-add would break that.
+set_source_files_properties(tectonic.c PROPERTIES COMPILE_OPTIONS "-ffp-contract=off")
 
 add_library(cubiomes SHARED $<TARGET_OBJECTS:objects>)
 add_library(cubiomes_static STATIC $<TARGET_OBJECTS:objects>)
@@ -230,3 +234,4 @@ endif()
 
 enable_testing()
 add_subdirectory(tests)
+add_subdirectory(tectonic)
